@@ -11,8 +11,8 @@
 #include "util.h"
 
 struct replaceInfo {
-  long position;
-  long length;
+  long long position;
+  long long length;
   std::string value;
 };
 
@@ -23,8 +23,9 @@ static std::vector<replaceInfo> computeReplacements(
                           std::smatch match) {
     auto key = copyAndTrim(std::string{match[1]});
     if (auto search = values.find(key); search != values.end()) {
-      replacements.push_back(
-          {match.position(), match.length(), search->second});
+      replacements.push_back({static_cast<long long>(match.position()),
+                              static_cast<long long>(match.length()),
+                              search->second});
       return replacements;
     }
     return replacements;
@@ -42,7 +43,7 @@ static std::optional<std::string>
 fillTemplate(const std::string &templateText,
              const std::unordered_map<std::string, const char *> &values) {
 
-  auto cursor = 0L;
+  auto cursor = 0LL;
   auto stream = std::stringstream{};
   for (const auto &info : computeReplacements(templateText, values)) {
     // First, add characters from the last cursor to info.position.
@@ -75,7 +76,7 @@ translateMarkDownToHtml(const std::string &text) {
 
   auto stream = std::stringstream{};
   auto status =
-      md_html(text.c_str(), text.length(), processOutput,
+      md_html(text.c_str(), static_cast<MD_SIZE>(text.length()), processOutput,
               static_cast<void *>(&stream), flags, MD_HTML_FLAG_XHTML);
   if (status == 0) {
     return stream.str();

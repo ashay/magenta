@@ -689,7 +689,7 @@ bool mg_file_write(struct mg_fs *fs, const char *path, const void *buf,
   bool result = false;
   struct mg_fd *fd;
   char tmp[MG_PATH_MAX];
-  mg_snprintf(tmp, sizeof(tmp), "%s..%u", path, arc4random());
+  mg_snprintf(tmp, sizeof(tmp), "%s..%d", path, rand());
   if ((fd = mg_fs_open(fs, tmp, MG_FS_WRITE)) != NULL) {
     result = fs->wr(fd->fd, buf, len) == len;
     mg_fs_close(fd);
@@ -4031,6 +4031,7 @@ static void onstatechange(struct mg_tcpip_if *ifp) {
     arp_ask(ifp, ifp->gw);
   } else if (ifp->state == MG_TCPIP_STATE_UP) {
     MG_ERROR(("Link up"));
+    srand((unsigned int) mg_millis());
   } else if (ifp->state == MG_TCPIP_STATE_DOWN) {
     MG_ERROR(("Link down"));
   }
@@ -4241,6 +4242,7 @@ static void rx_dhcp_client(struct mg_tcpip_if *ifp, struct pkt *pkt) {
       ifp->state = MG_TCPIP_STATE_READY;  // BOUND state
       uint64_t rand;
       mg_random(&rand, sizeof(rand));
+      srand((unsigned int) (rand + mg_millis()));
     } else if (ifp->state == MG_TCPIP_STATE_READY && ifp->ip == ip) {  // renew
       ifp->lease_expire = ifp->now + lease * 1000;
       MG_INFO(("Lease: %u sec (%lld)", lease, ifp->lease_expire / 1000));
@@ -7369,7 +7371,7 @@ void mg_random(void *buf, size_t len) {
   }
 #endif
   // If everything above did not work, fallback to a pseudo random generator
-  while (!done && len--) *p++ = (unsigned char) (arc4random() & 255);
+  while (!done && len--) *p++ = (unsigned char) (rand() & 255);
 }
 #endif
 

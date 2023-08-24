@@ -31,6 +31,7 @@ jobs:
         platform: [
           ubuntu-22.04-x64,
           macos-12-x64,
+          windows-2022-x64,
         ]
 
         include:
@@ -42,6 +43,10 @@ jobs:
           - platform: macos-12-x64
             host-os: macos-12
             target-os: macos
+            arch: x64
+          - platform: windows-2022-x64
+            host-os: windows-2022
+            target-os: windows
             arch: x64
 
     runs-on: ${{ matrix.host-os }}
@@ -55,17 +60,30 @@ jobs:
       shell: bash
       run: python3 -m pip install cmake ninja
 
-    - name: Install libbsd (Ubuntu)
-      if: ${{ matrix.target-os == 'ubuntu' }}
-      shell: bash
-      run: sudo apt-get install libbsd-dev
-
-    - name: Configure, Build, and Test
+    - name: Configure, Build, and Test (Ubuntu and macOS)
+      if: ${{ matrix.target-os == 'ubuntu' || matrix.target-os == 'macos' }}
       shell: bash
       run: >
         cmake -GNinja -Bbuild
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+
+        ninja -C build
+
+        ninja -C build check-server
+
+    - name: Setup Visual Studio Shell (Windows)
+      if: matrix.target-os == 'windows'
+      uses: TheMrMilchmann/setup-msvc-dev@v2
+      with:
+        arch: x64
+
+    - name: Configure, Build, and Test (Windows)
+      if: matrix.target-os == 'windows'
+      shell: bash
+      run: >
+        cmake -GNinja -Bbuild
+        -DCMAKE_BUILD_TYPE=Release
 
         ninja -C build
 

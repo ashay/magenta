@@ -222,13 +222,13 @@ struct value_parser
     }
 };
 
-template<class T, typename std::enable_if<(not is_container<T>{} or std::is_convertible<T, std::string>{}), int>::type = 0>
+template<class T, typename std::enable_if<(!is_container<T>{} || std::is_convertible<T, std::string>{}), int>::type = 0>
 void write_value_to(T& result, const std::string& x)
 {
     result = value_parser<T>::apply(x);
 }
 
-template<class T, typename std::enable_if<(is_container<T>{} and not std::is_convertible<T, std::string>{}), int>::type = 0>
+template<class T, typename std::enable_if<(is_container<T>{} && !std::is_convertible<T, std::string>{}), int>::type = 0>
 void write_value_to(T& result, const std::string& x)
 {
     result.insert(result.end(), value_parser<typename T::value_type>::apply(x));
@@ -249,7 +249,7 @@ enum class argument_type
 template<class T>
 argument_type get_argument_type(const T&)
 {
-    if (std::is_same<T, bool>() or std::is_same<T, std::nullptr_t>()) return argument_type::none;
+    if (std::is_same<T, bool>() || std::is_same<T, std::nullptr_t>()) return argument_type::none;
     else if (is_container<T>()) return argument_type::multiple;
     else return argument_type::single;
 }
@@ -265,7 +265,7 @@ std::string type_to_help_impl(rank<0>)
 }
 
 template<class T>
-auto type_to_help_impl(rank<1>) -> typename std::enable_if<(is_container<T>() and not std::is_convertible<T, std::string>()), std::string>::type
+auto type_to_help_impl(rank<1>) -> typename std::enable_if<(is_container<T>() && !std::is_convertible<T, std::string>()), std::string>::type
 {
     return args::type_to_help_impl<value_of<T>>(rank<1>{}) + "...";
 }
@@ -312,7 +312,7 @@ struct argument
         this->write_value(s);
         count++;
         for(auto&& f:eager_callbacks) f(*this);
-        return not eager_callbacks.empty();
+        return !eager_callbacks.empty();
     }
 };
 
@@ -480,7 +480,7 @@ static inline auto required()
         a.required = true;
         a.add_callback([](const argument& arg)
         {
-            if (arg.required and arg.count == 0)
+            if (arg.required && arg.count == 0)
                 throw std::runtime_error("required arg missing: " + arg.get_flags());
         });
     };
@@ -608,7 +608,7 @@ auto try_run(rank<1>, T &x, Ts &&...) ARGS_RETURNS(x.run())
         for (auto &&c : value)
           if (ctx[std::string("-") + c].write(""))
             return T::success;
-      } else if (not value.empty()) {
+      } else if (!value.empty()) {
         capture = false;
         if (ctx[core].write(value))
           return T::success;
