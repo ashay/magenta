@@ -1,0 +1,72 @@
+name: Build and Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+    paths:
+      - CMakeLists.txt
+      - 'app/**'
+      - 'external/**'
+      - 'lib/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+
+    paths:
+      - CMakeLists.txt
+      - 'app/**'
+      - 'external/**'
+      - 'lib/**'
+      - 'tests/**'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [
+          ubuntu-22.04-x64,
+          macos-12-x64,
+        ]
+
+        include:
+          # Specify OS versions
+          - platform: ubuntu-22.04-x64
+            host-os: ubuntu-22.04
+            target-os: ubuntu
+            arch: x64
+          - platform: macos-12-x64
+            host-os: macos-12
+            target-os: macos
+            arch: x64
+
+    runs-on: ${{ matrix.host-os }}
+
+    steps:
+
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+
+    - name: Install Prerequisites
+      shell: bash
+      run: python3 -m pip install cmake ninja
+
+    - name: Install libbsd (Ubuntu)
+      if: ${{ matrix.target-os == 'ubuntu' }}
+      shell: bash
+      run: sudo apt-get install libbsd-dev
+
+    - name: Configure, Build, and Test
+      shell: bash
+      run: >
+        cmake -GNinja -Bbuild
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+
+        ninja -C build
+
+        ninja -C build check-server

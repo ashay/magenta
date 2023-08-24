@@ -1,0 +1,81 @@
+/* from https://news.ycombinator.com/item?id=32972768 */
+/* increase line-height for everything except headings */
+body :not(:is(h1,h2,h3,h4,h5,h6)) {
+  line-height: 1.75;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, Palatino, serif;
+  font-size: 18px;
+}
+
+body, p, ul, ol {
+  -webkit-text-size-adjust: 100%;   /* Safari/Webkit nonsense */
+}
+
+div#banner {
+  height: 100vh;
+  display: table-cell;
+  vertical-align: middle;   
+  padding: 0 5vw
+}
+
+a {
+  outline: 0;
+  color: #111;
+  text-decoration: none;
+  border-bottom: 2px solid #468C98;
+}
+
+td > a {
+  color: #329F5B;
+  display: block;
+  border-bottom: none;
+}
+
+a.red {
+  border-bottom: 2px solid #984447
+}
+
+a.green {
+  border-bottom: 2px solid #329F5B
+}
+
+div#container {
+  padding: 50px 0;
+}
+
+div#content {
+  padding: 4vw 5vw;
+  padding-right: 0;
+  width: 90vw;
+  max-width: 70ch;
+}
+
+p {
+  padding: 12px 0;
+  text-indent: 30px;
+}
+
+/* the first paragraph after any heading should not be indented */
+h1+p, h2+p, h3+p, h4+p, h5+p, h6+p, p:first-of-type {
+  text-indent: 0;
+}
+
+table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 5px 10px;
+  font-weight: normal;
+  border-bottom: 1px solid #ddd;
+}
+
+tbody tr:hover {
+  background-color: #eee;
+}
