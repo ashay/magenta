@@ -28,8 +28,12 @@ static bool handleFileRequest(const std::string &uri,
 
   // Non-Markdown files pass through without any rendering.
   if (path.extension() != ".md") {
-    struct mg_http_serve_opts opts = {.root_dir = auxData.docRoot.c_str()};
-    mg_http_serve_file(connection, message, path.c_str(), &opts);
+    auto pathString = path.string();
+    auto docRootString = auxData.docRoot.string();
+
+    auto opts = mg_http_serve_opts{};
+    opts.root_dir = docRootString.c_str();
+    mg_http_serve_file(connection, message, pathString.c_str(), &opts);
     return true;
   }
 

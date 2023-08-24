@@ -351,7 +351,6 @@ static inline int mg_mkdir(const char *path, mode_t mode) {
 #endif
 
 #if !defined(MG_ENABLE_EPOLL) && defined(__linux__)
-#include <bsd/stdlib.h>
 #define MG_ENABLE_EPOLL 1
 #elif !defined(MG_ENABLE_POLL)
 #define MG_ENABLE_POLL 1
