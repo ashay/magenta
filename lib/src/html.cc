@@ -23,9 +23,9 @@ static std::vector<replaceInfo> computeReplacements(
                           std::smatch match) {
     auto key = copyAndTrim(std::string{match[1]});
     if (auto search = values.find(key); search != values.end()) {
-      replacements.push_back({static_cast<long long>(match.position()),
-                              static_cast<long long>(match.length()),
-                              search->second});
+      replacements.emplace_back(
+          replaceInfo{static_cast<long long>(match.position()),
+                      static_cast<long long>(match.length()), search->second});
       return replacements;
     }
     return replacements;
@@ -162,7 +162,7 @@ std::optional<std::string> renderDirectory(const std::string &uri,
 
   auto foldFn = [&uri](std::vector<dirEntry> acc,
                        const std::filesystem::directory_entry &entry) {
-    acc.push_back({uri, entry.path().filename().string()});
+    acc.emplace_back(dirEntry{uri, entry.path().filename().string()});
     return acc;
   };
 

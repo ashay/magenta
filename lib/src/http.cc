@@ -1,3 +1,5 @@
+#include <csignal>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -12,6 +14,10 @@ struct auxInfo {
   std::string templateText;
   std::string notFoundHtml;
 };
+
+static const auto codeOk = 200;
+static const auto codeError = 500;
+static const auto codeNotFound = 404;
 
 static bool handleFileRequest(const std::string &uri,
                               const std::filesystem::path &path,
@@ -39,13 +45,13 @@ static bool handleFileRequest(const std::string &uri,
 
   auto maybeHtml = renderFile(path, auxData.templateText);
   if (!maybeHtml) {
-    mg_http_reply(connection, 500, "Content-Type: text/html\r\n",
+    mg_http_reply(connection, codeError, "Content-Type: text/html\r\n",
                   "failed to render page for URI: %.*s", uri.length(),
                   uri.c_str());
     return false;
   }
 
-  mg_http_reply(connection, 200, "Content-Type: text/html\r\n",
+  mg_http_reply(connection, codeOk, "Content-Type: text/html\r\n",
                 maybeHtml->c_str(), maybeHtml->length());
   return true;
 }
@@ -63,13 +69,13 @@ static bool handleDirectoryRequest(const std::string &uri,
 
   auto maybeHtml = renderDirectory(uri, path, auxData.templateText);
   if (!maybeHtml) {
-    mg_http_reply(connection, 500, "Content-Type: text/html\r\n",
+    mg_http_reply(connection, codeError, "Content-Type: text/html\r\n",
                   "failed to render page for URI: %.*s", uri.length(),
                   uri.c_str());
     return false;
   }
 
-  mg_http_reply(connection, 200, "Content-Type: text/html\r\n",
+  mg_http_reply(connection, codeOk, "Content-Type: text/html\r\n",
                 maybeHtml->c_str(), maybeHtml->length());
   return true;
 }
@@ -96,7 +102,7 @@ static void reqFn(struct mg_connection *connection, int ev, void *evData,
 
   if (!std::filesystem::exists(fsPath)) {
     std::cerr << "file not found " << fsPath << std::endl;
-    mg_http_reply(connection, 404, "Content-Type: text/html\r\n",
+    mg_http_reply(connection, codeNotFound, "Content-Type: text/html\r\n",
                   auxData->notFoundHtml.c_str(),
                   auxData->notFoundHtml.length());
     return;
@@ -114,18 +120,28 @@ static void reqFn(struct mg_connection *connection, int ev, void *evData,
   handleFileRequest(uri, fsPath, *auxData, connection, message);
 }
 
-// Handle interrupts, like Ctrl-C
-static int s_signo;
+class signalHandler {
+private:
+  static inline std::function<void(int)> handlerFunc = nullptr;
 
-static void signal_handler(int signo) { s_signo = signo; }
+  static void handler(int signal) { handlerFunc(signal); }
+
+public:
+  static void init(std::function<void(int)> func) {
+    handlerFunc = func;
+    std::signal(SIGINT, handler);
+    std::signal(SIGTERM, handler);
+  }
+};
 
 void startWebServer(const std::filesystem::path &docRoot,
                     std::string templateText, std::string notFoundHtml,
                     uint32_t portNumber) {
-  signal(SIGINT, signal_handler);
-  signal(SIGTERM, signal_handler);
+  // Handle interrupts, like Ctrl-C
+  auto sigNo = 0;
+  signalHandler::init([&sigNo](int number) { sigNo = number; });
 
-  struct mg_mgr mgr;
+  auto mgr = mg_mgr{};
   mg_mgr_init(&mgr);
 
   auto auxData =
@@ -133,8 +149,9 @@ void startWebServer(const std::filesystem::path &docRoot,
   auto endPoint = std::string{"http://localhost:"} + std::to_string(portNumber);
   mg_http_listen(&mgr, endPoint.c_str(), reqFn, &auxData);
 
-  while (s_signo == 0)
-    mg_mgr_poll(&mgr, 1000);
+  const auto timeoutMs = 1000;
+  while (sigNo == 0)
+    mg_mgr_poll(&mgr, timeoutMs);
 
   mg_mgr_free(&mgr);
 }

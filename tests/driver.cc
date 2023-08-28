@@ -13,7 +13,7 @@ inline void check(const char *id, bool condition, struct stats &stats) {
   if (condition) {
     stats.passCount += 1;
   } else {
-    stats.failedList.push_back(id);
+    stats.failedList.emplace_back(id);
   }
 }
 
