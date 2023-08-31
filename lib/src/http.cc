@@ -16,8 +16,9 @@ struct auxInfo {
 };
 
 static const auto codeOk = 200;
-static const auto codeError = 500;
+static const auto codeRedirect = 302;
 static const auto codeNotFound = 404;
+static const auto codeInternalError = 500;
 
 static bool handleFileRequest(const std::string &uri,
                               const std::filesystem::path &path,
@@ -45,7 +46,7 @@ static bool handleFileRequest(const std::string &uri,
 
   auto maybeHtml = renderFile(path, auxData.templateText);
   if (!maybeHtml) {
-    mg_http_reply(connection, codeError, "Content-Type: text/html\r\n",
+    mg_http_reply(connection, codeInternalError, "Content-Type: text/html\r\n",
                   "failed to render page for URI: %.*s", uri.length(),
                   uri.c_str());
     return false;
@@ -69,7 +70,7 @@ static bool handleDirectoryRequest(const std::string &uri,
 
   auto maybeHtml = renderDirectory(uri, path, auxData.templateText);
   if (!maybeHtml) {
-    mg_http_reply(connection, codeError, "Content-Type: text/html\r\n",
+    mg_http_reply(connection, codeInternalError, "Content-Type: text/html\r\n",
                   "failed to render page for URI: %.*s", uri.length(),
                   uri.c_str());
     return false;
@@ -80,8 +81,8 @@ static bool handleDirectoryRequest(const std::string &uri,
   return true;
 }
 
-static void reqFn(struct mg_connection *connection, int ev, void *evData,
-                  void *fnData) {
+static void responseFn(struct mg_connection *connection, int ev, void *evData,
+                       void *fnData) {
   if (ev != MG_EV_HTTP_MSG) {
     return;
   }
@@ -89,16 +90,12 @@ static void reqFn(struct mg_connection *connection, int ev, void *evData,
   struct mg_http_message *message =
       static_cast<struct mg_http_message *>(evData);
   auto uri = std::string{message->uri.ptr, message->uri.len};
-
   auto uriPath = std::filesystem::path{uri}.lexically_normal();
-  auto cleanedUri = uriPath.string();
-  if (cleanedUri.length() > 0 && cleanedUri.back() == '/') {
-    cleanedUri.pop_back();
-  }
+  auto normalUri = uriPath.string();
 
   auto auxData = static_cast<auxInfo *>(fnData);
   auto fsPath = auxData->docRoot;
-  fsPath += std::filesystem::path{cleanedUri}.make_preferred();
+  fsPath += uriPath.make_preferred();
 
   if (!std::filesystem::exists(fsPath)) {
     std::cerr << "file not found " << fsPath << std::endl;
@@ -108,11 +105,21 @@ static void reqFn(struct mg_connection *connection, int ev, void *evData,
     return;
   }
 
+  // If this URI points to a directory, then make sure it always ends in a '/',
+  // so that relative paths always refer to the URI directory instead of the
+  // parent directory.
+  if (normalUri.length() > 0 && normalUri.back() != '/' &&
+      std::filesystem::is_directory(fsPath)) {
+    auto redirectMsg = std::string{"Location: "} + normalUri + "/\r\n";
+    mg_http_reply(connection, codeRedirect, redirectMsg.c_str(), "");
+    return;
+  }
+
   if (std::filesystem::is_directory(fsPath)) {
     if (std::filesystem::exists(fsPath / "index.md")) {
       fsPath /= "index.md";
     } else {
-      handleDirectoryRequest(cleanedUri, fsPath, *auxData, connection);
+      handleDirectoryRequest(normalUri, fsPath, *auxData, connection);
       return;
     }
   }
@@ -147,7 +154,7 @@ void startWebServer(const std::filesystem::path &docRoot,
   auto auxData =
       auxInfo{docRoot, std::move(templateText), std::move(notFoundHtml)};
   auto endPoint = std::string{"http://localhost:"} + std::to_string(portNumber);
-  mg_http_listen(&mgr, endPoint.c_str(), reqFn, &auxData);
+  mg_http_listen(&mgr, endPoint.c_str(), responseFn, &auxData);
 
   const auto timeoutMs = 1000;
   while (sigNo == 0)

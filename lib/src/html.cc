@@ -140,10 +140,14 @@ std::optional<std::string> renderFile(const std::filesystem::path &path,
 struct dirEntry {
   std::string uri;
   std::string name;
+  bool isDirectory;
 };
 
 std::ostream &operator<<(std::ostream &os, const dirEntry &entry) {
-  os << "| [" << entry.name << "](" << entry.uri << "/" << entry.name << ") | "
+  // Since entry.uri points to a directory, the 302 redirect in `responseFn()`
+  // ensures that the URI ends in a '/', so we don't need to introduce an
+  // additional '/' character between the URI and the entry name.
+  os << "| [" << entry.name << "](" << entry.uri << entry.name << ") | "
      << "|" << std::endl;
   return os;
 }
@@ -160,9 +164,18 @@ std::optional<std::string> renderDirectory(const std::string &uri,
     return {};
   }
 
+  if (uri.empty() || uri.back() != '/') {
+    if (!silent) {
+      std::cerr << "URI for directory does not end in a '/': " << path
+                << std::endl;
+    }
+    return {};
+  }
+
   auto foldFn = [&uri](std::vector<dirEntry> acc,
                        const std::filesystem::directory_entry &entry) {
-    acc.emplace_back(dirEntry{uri, entry.path().filename().string()});
+    acc.emplace_back(
+        dirEntry{uri, entry.path().filename().string(), entry.is_directory()});
     return acc;
   };
 
@@ -173,7 +186,10 @@ std::optional<std::string> renderDirectory(const std::string &uri,
 
   std::sort(entries.begin(), entries.end(),
             [](const dirEntry &left, const dirEntry &right) {
-              return left.name < right.name;
+              // Directory entries come first, then non-directory entries.
+              return left.isDirectory != right.isDirectory
+                         ? left.isDirectory
+                         : left.name < right.name;
             });
 
   auto stream = std::stringstream{};
@@ -181,7 +197,7 @@ std::optional<std::string> renderDirectory(const std::string &uri,
   stream << "| |" << std::endl;
   stream << "|----------|" << std::endl;
 
-  stream << dirEntry{uri, ".."};
+  stream << dirEntry{uri, "..", /* isDirectory */ true};
   for (const auto &entry : entries) {
     stream << entry;
   }
