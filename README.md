@@ -1,3 +1,5 @@
+[![Build and Test](https://github.com/ashay/magenta/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/ashay/magenta/actions/workflows/build-and-test.yml)
+
 # Magenta #
 
 Magenta serves rendered Markdown documents over HTTP.  Instead of generating
