@@ -123,13 +123,18 @@ void testRenderDirectory(struct stats &stats) {
                         /* silent */ true) == std::nullopt,
         stats);
 
+  check("directory without trailing '/'",
+        renderDirectory("foo", dir, "{{ body }}", /* silent */ true) ==
+            std::nullopt,
+        stats);
+
   check(
       "valid dir",
       [&dir] {
         auto result =
-            renderDirectory("foo", dir, "{{ body }}", /* silent */ true);
+            renderDirectory("foo/", dir, "{{ body }}", /* silent */ true);
         return *result ==
-               R"(<h1>foo</h1>
+               R"(<h1>foo/</h1>
 <table>
 <thead>
 <tr>
@@ -139,6 +144,9 @@ void testRenderDirectory(struct stats &stats) {
 <tbody>
 <tr>
 <td><a href="foo/..">..</a></td>
+</tr>
+<tr>
+<td><a href="foo/z-sample-dir">z-sample-dir</a></td>
 </tr>
 <tr>
 <td><a href="foo/hello.md">hello.md</a></td>
