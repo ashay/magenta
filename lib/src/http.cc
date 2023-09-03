@@ -153,7 +153,7 @@ void startWebServer(const std::filesystem::path &docRoot,
 
   auto auxData =
       auxInfo{docRoot, std::move(templateText), std::move(notFoundHtml)};
-  auto endPoint = std::string{"http://localhost:"} + std::to_string(portNumber);
+  auto endPoint = std::string{"http://0.0.0.0:"} + std::to_string(portNumber);
   mg_http_listen(&mgr, endPoint.c_str(), responseFn, &auxData);
 
   const auto timeoutMs = 1000;
