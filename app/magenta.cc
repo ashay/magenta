@@ -3,6 +3,7 @@
 #include <string>
 
 #include "args.hpp"
+#include "json.hpp"
 #include "server.h"
 
 static std::optional<std::string>
@@ -22,28 +23,43 @@ struct magenta {
     return "Web server for rendering wiki-like documents.";
   }
 
-  uint32_t portNumber;
-  std::filesystem::path docRoot;
-  std::filesystem::path templatePath;
+  std::filesystem::path configPath;
 
-  magenta()
-      : portNumber(8080), docRoot(std::filesystem::current_path() / "docs"),
-        templatePath(std::filesystem::current_path() / "template.html") {}
+  magenta() : configPath(std::filesystem::current_path() / "config.json") {}
 
   template <class F> void parse(F f) {
-    f(portNumber, "--port", "-p",
-      args::help("HTTP port number to listen for connections (8000 if not "
-                 "specified)"));
-
-    f(docRoot, "--doc-root", "-d",
-      args::help("Path to document root ('docs' if not specified)"));
-
-    f(templatePath, "--template-path", "-t",
-      args::help("Path to file that contains the HTML template "
-                 "('template.html' if not specified)"));
+    f(configPath, "--config-path", "-c",
+      args::help(
+          "Path to configuration file (`$PWD/config.json` if not specified"));
   }
 
   int run() {
+    if (!std::filesystem::exists(configPath)) {
+      std::cerr << "config file path points to non-existent file: '"
+                << configPath.string() << "'" << std::endl;
+      return static_cast<int>(Err::FILE_IO);
+    }
+
+    if (!std::filesystem::is_regular_file(configPath) &&
+        std::filesystem::is_symlink(configPath)) {
+      std::cerr
+          << "config file path does not point to a regular file or symlink: '"
+          << configPath.string() << "'" << std::endl;
+      return static_cast<int>(Err::FILE_IO);
+    }
+
+    auto maybeConfig = fetchFileContents(configPath);
+    if (!maybeConfig) {
+      std::cerr << "failed to load configuration from file: '"
+                << configPath.string() << "'" << std::endl;
+      return static_cast<int>(Err::FILE_IO);
+    }
+
+    auto config = nlohmann::json::parse(*maybeConfig);
+    auto port = config["core"]["port"];
+    auto docRoot = config["core"]["docRoot"].template get<std::filesystem::path>();
+    auto templatePath = config["core"]["templatePath"].template get<std::filesystem::path>();
+
     if (!std::filesystem::exists(docRoot)) {
       std::cerr << "document root points to non-existent directory: '"
                 << docRoot.string() << "'" << std::endl;
@@ -69,13 +85,13 @@ struct magenta {
       return static_cast<int>(Err::FILE_IO);
     }
 
-    std::cout << "Listening for connections on port " << portNumber
+    std::cout << "Listening for connections on port " << port
               << ", with document root at '" << docRoot.string()
               << "' and template file '" << templatePath.string() << "' ..."
               << std::endl;
 
     startWebServer(docRoot, std::move(*maybeTemplateText),
-                   std::move(*maybeNotFoundHtml), portNumber);
+                   std::move(*maybeNotFoundHtml), port);
 
     std::cout << "No longer listening for connections." << std::endl;
     return static_cast<int>(Err::NONE);
