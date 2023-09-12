@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "json.hpp"
 #include "server.h"
 
 struct stats {
@@ -15,6 +16,256 @@ inline void check(const char *id, bool condition, struct stats &stats) {
   } else {
     stats.failedList.emplace_back(id);
   }
+}
+
+void testLoadConfig(struct stats &stats) {
+  const auto dir = std::filesystem::path{ARTIFACTS_PATH};
+
+  check(
+      "empty config",
+      [] {
+        nlohmann::json config;
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing port in config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing docRoot in config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["templatePath"] = dir / "template.html";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing templatePath in config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "docRoot in config points to non-existent path",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir / "foo.html";
+        config["core"]["templatePath"] = dir / "template.html";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "docRoot in config does not point to a directory",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir / "template.html";
+        config["core"]["templatePath"] = dir / "template.html";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "templatePath in config points to non-existent path",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "foo.html";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "templatePath in config does not point to a regular file or symlink",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir;
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "valid base config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+        return validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing `kind` field in auth config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        config["auth"] = {};
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "unsupported `kind` value in auth config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        config["auth"]["kind"] = "foobar";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing `providers` list in oauthv2 config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        config["auth"]["kind"] = "oauthv2";
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing `name` field in provider config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        nlohmann::json provider0;
+        provider0["clientIdEnvVar"] = "CLIENT0_ID";
+        provider0["clientSecretEnvVar"] = "CLIENT0_SECRET";
+
+        nlohmann::json provider1;
+        provider1["clientIdEnvVar"] = "CLIENT1_ID";
+        provider1["clientSecretEnvVar"] = "CLIENT1_SECRET";
+
+        config["auth"]["kind"] = "oauthv2";
+        config["auth"]["providers"] = {provider0, provider1};
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "unsupported `name` value in provider config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        nlohmann::json provider0;
+        provider0["name"] = "guthub";
+        provider0["clientIdEnvVar"] = "CLIENT0_ID";
+        provider0["clientSecretEnvVar"] = "CLIENT0_SECRET";
+
+        nlohmann::json provider1;
+        provider1["name"] = "guthub";
+        provider1["clientIdEnvVar"] = "CLIENT1_ID";
+        provider1["clientSecretEnvVar"] = "CLIENT1_SECRET";
+
+        config["auth"]["kind"] = "oauthv2";
+        config["auth"]["providers"] = {provider0, provider1};
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing `clientIdEnvVar` field in provider config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        nlohmann::json provider0;
+        provider0["name"] = "github";
+        provider0["clientSecretEnvVar"] = "CLIENT0_SECRET";
+
+        nlohmann::json provider1;
+        provider1["name"] = "github";
+        provider1["clientSecretEnvVar"] = "CLIENT1_SECRET";
+
+        config["auth"]["kind"] = "oauthv2";
+        config["auth"]["providers"] = {provider0, provider1};
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "missing `clientSecretEnvVar` field in provider config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        nlohmann::json provider0;
+        provider0["name"] = "github";
+        provider0["clientIdEnvVar"] = "CLIENT0_ID";
+
+        nlohmann::json provider1;
+        provider1["name"] = "github";
+        provider1["clientIdEnvVar"] = "CLIENT1_ID";
+
+        config["auth"]["kind"] = "oauthv2";
+        config["auth"]["providers"] = {provider0, provider1};
+        return !validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
+
+  check(
+      "valid github-based config",
+      [&dir] {
+        nlohmann::json config;
+        config["core"]["port"] = 808;
+        config["core"]["docRoot"] = dir;
+        config["core"]["templatePath"] = dir / "template.html";
+
+        nlohmann::json provider0;
+        provider0["name"] = "github";
+        provider0["clientIdEnvVar"] = "CLIENT0_ID";
+        provider0["clientSecretEnvVar"] = "CLIENT0_SECRET";
+
+        nlohmann::json provider1;
+        provider1["name"] = "github";
+        provider1["clientIdEnvVar"] = "CLIENT1_ID";
+        provider1["clientSecretEnvVar"] = "CLIENT1_SECRET";
+
+        config["auth"]["kind"] = "oauthv2";
+        config["auth"]["providers"] = {provider0, provider1};
+        return validateConfiguration(config, /* silent */ true);
+      }(),
+      stats);
 }
 
 void testRenderText(struct stats &stats) {
@@ -154,6 +405,9 @@ void testRenderDirectory(struct stats &stats) {
 <tr>
 <td><a href="foo/symlink.md">symlink.md</a></td>
 </tr>
+<tr>
+<td><a href="foo/template.html">template.html</a></td>
+</tr>
 </tbody>
 </table>
 )";
@@ -164,6 +418,7 @@ void testRenderDirectory(struct stats &stats) {
 int main() {
   auto allStats = stats{};
 
+  testLoadConfig(allStats);
   testRenderText(allStats);
   testFetchFileContents(allStats);
   testRenderFile(allStats);

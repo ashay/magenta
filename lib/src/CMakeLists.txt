@@ -19,8 +19,13 @@ target_include_directories(mongoose PUBLIC
 )
 
 # Build the magenta server library.
-add_library(server html.cc http.cc util.cc)
-target_include_directories(server PUBLIC ${PROJECT_SOURCE_DIR}/lib/include)
+add_library(server config.cc html.cc http.cc util.cc)
+
+target_include_directories(server PUBLIC
+  ${PROJECT_SOURCE_DIR}/lib/include
+  ${PROJECT_SOURCE_DIR}/external/json
+)
+
 target_link_libraries(server PUBLIC md4c mongoose)
 
 # Set stricter warning flags for the magenta server library.
