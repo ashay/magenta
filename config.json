@@ -3,5 +3,19 @@
     "port": 8080,
     "docRoot": "docs",
     "templatePath": "template.html"
+  },
+  "auth": {
+    "kind": "oauthv2",
+    "providers": [
+      {
+        "name": "github",
+        "allowList": [
+          "ashay"
+        ],
+        "blockList": [],
+        "clientIdEnvVar": "GITHUB_CLIENT_ID",
+        "clientSecretEnvVar": "GITHUB_CLIENT_SECRET"
+      }
+    ]
   }
 }
