@@ -5,22 +5,9 @@ on:
     branches:
       - main
 
-    paths:
-      - CMakeLists.txt
-      - 'app/**'
-      - 'external/**'
-      - 'lib/**'
-      - 'tests/**'
   push:
     branches:
       - main
-
-    paths:
-      - CMakeLists.txt
-      - 'app/**'
-      - 'external/**'
-      - 'lib/**'
-      - 'tests/**'
 
   workflow_dispatch:
 
@@ -62,7 +49,12 @@ jobs:
 
     - name: Check Source Formatting
       shell: bash
-      run: git fetch origin main && git clang-format origin/main --diff
+      run: |
+        git fetch origin main
+        git clang-format origin/main --diff
+
+        python3 -m json.tool --indent=2 config.json __fmt.config.json
+        cmp -s config.json __fmt.config.json
 
     - name: Configure, Build, and Test (Ubuntu and macOS)
       if: ${{ matrix.target-os == 'ubuntu' || matrix.target-os == 'macos' }}
