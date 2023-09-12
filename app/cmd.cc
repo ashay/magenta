@@ -13,14 +13,6 @@ struct config {
   std::filesystem::path templatePath;
 };
 
-struct config populateConfigurationFields(const nlohmann::json &configJson) {
-  return config{
-      configJson["core"]["port"],
-      configJson["core"]["docRoot"].template get<std::filesystem::path>(),
-      configJson["core"]["templatePath"].template get<std::filesystem::path>(),
-  };
-}
-
 std::optional<struct config>
 validateAndLoadConfiguration(const std::filesystem::path &configPath) {
   if (!std::filesystem::exists(configPath)) {
@@ -45,21 +37,42 @@ validateAndLoadConfiguration(const std::filesystem::path &configPath) {
   }
 
   auto configJson = nlohmann::json::parse(*maybeConfig);
-  auto config = populateConfigurationFields(configJson);
+  auto docRoot =
+      configJson["core"]["docRoot"].template get<std::filesystem::path>();
+  auto templatePath =
+      configJson["core"]["templatePath"].template get<std::filesystem::path>();
 
-  if (!std::filesystem::exists(config.docRoot)) {
-    std::cerr << "document root points to non-existent directory: '"
-              << config.docRoot.string() << "'" << std::endl;
+  if (!std::filesystem::exists(docRoot)) {
+    std::cerr << "document root points to non-existent path: '"
+              << docRoot.string() << "'" << std::endl;
     return std::nullopt;
   }
 
-  if (!std::filesystem::is_directory(config.docRoot)) {
+  if (!std::filesystem::is_directory(docRoot)) {
     std::cerr << "document root does not point to a directory: '"
-              << config.docRoot.string() << "'" << std::endl;
+              << docRoot.string() << "'" << std::endl;
     return std::nullopt;
   }
 
-  return config;
+  if (!std::filesystem::exists(templatePath)) {
+    std::cerr << "template path points to non-existent path: '"
+              << templatePath.string() << "'" << std::endl;
+    return std::nullopt;
+  }
+
+  if (!std::filesystem::is_regular_file(templatePath) &&
+      !std::filesystem::is_symlink(templatePath)) {
+    std::cerr
+        << "template path does not point to a regular file or a symlink: '"
+        << templatePath.string() << "'" << std::endl;
+    return std::nullopt;
+  }
+
+  return config{
+      configJson["core"]["port"],
+      docRoot,
+      templatePath,
+  };
 }
 
 std::optional<std::string> load404Page(const std::filesystem::path &docRoot,
@@ -72,13 +85,13 @@ std::optional<std::string> load404Page(const std::filesystem::path &docRoot,
 
 int magenta::run() {
   if (!std::filesystem::exists(configPath)) {
-    std::cerr << "config file path points to non-existent file: '"
+    std::cerr << "config file path points to non-existent path: '"
               << configPath.string() << "'" << std::endl;
     return static_cast<int>(Err::FILE_IO);
   }
 
   if (!std::filesystem::is_regular_file(configPath) &&
-      std::filesystem::is_symlink(configPath)) {
+      !std::filesystem::is_symlink(configPath)) {
     std::cerr
         << "config file path does not point to a regular file or symlink: '"
         << configPath.string() << "'" << std::endl;
