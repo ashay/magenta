@@ -57,8 +57,10 @@ struct magenta {
 
     auto config = nlohmann::json::parse(*maybeConfig);
     auto port = config["core"]["port"];
-    auto docRoot = config["core"]["docRoot"].template get<std::filesystem::path>();
-    auto templatePath = config["core"]["templatePath"].template get<std::filesystem::path>();
+    auto docRoot =
+        config["core"]["docRoot"].template get<std::filesystem::path>();
+    auto templatePath =
+        config["core"]["templatePath"].template get<std::filesystem::path>();
 
     if (!std::filesystem::exists(docRoot)) {
       std::cerr << "document root points to non-existent directory: '"

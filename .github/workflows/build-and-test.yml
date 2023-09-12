@@ -58,7 +58,11 @@ jobs:
 
     - name: Install Prerequisites
       shell: bash
-      run: python3 -m pip install cmake ninja
+      run: python3 -m pip install clang-format cmake ninja
+
+    - name: Check Source Formatting
+      shell: bash
+      run: git fetch origin main && git clang-format origin/main --diff
 
     - name: Configure, Build, and Test (Ubuntu and macOS)
       if: ${{ matrix.target-os == 'ubuntu' || matrix.target-os == 'macos' }}
