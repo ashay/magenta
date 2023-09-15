@@ -1,3 +1,6 @@
 # Build artifacts
 *.o
 build
+
+# Configuration artifacts
+config.json
