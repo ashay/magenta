@@ -14,10 +14,38 @@ std::optional<std::string> load404Page(const std::filesystem::path &docRoot,
              : renderText("# 404 Not Found", templateText);
 }
 
-int magenta::run() {
-  if (!std::filesystem::exists(configPath)) {
+bool copyDefaultConfig(const std::filesystem::path &configPath) {
+  // Check if the default config file exists.
+  const auto defaultConfigPath =
+      std::filesystem::current_path() / ".default.config.json";
+
+  if (!std::filesystem::exists(defaultConfigPath)) {
     std::cerr << "config file path points to non-existent path: '"
-              << configPath.string() << "'" << std::endl;
+              << configPath.string()
+              << "' and I couldn't find the default config file: '"
+              << defaultConfigPath.string() << "'" << std::endl;
+    return false;
+  }
+
+  // Copy from `defaultConfigPath` to `configPath`.
+  auto errCode = std::error_code{};
+  std::filesystem::copy(defaultConfigPath, configPath, errCode);
+  if (errCode) {
+    std::cerr << "config file path points to non-existent path: '"
+              << configPath.string()
+              << "' and I couldn't copy contents of the default config file: '"
+              << defaultConfigPath.string() << "'" << std::endl;
+    return false;
+  }
+
+  std::cout << "Copied default configuration file '"
+            << defaultConfigPath.string() << "' to '" << configPath.string()
+            << "'" << std::endl;
+  return true;
+}
+
+int magenta::run() {
+  if (!std::filesystem::exists(configPath) && !copyDefaultConfig(configPath)) {
     return static_cast<int>(Err::FILE_IO);
   }
 

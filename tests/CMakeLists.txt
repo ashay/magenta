@@ -9,7 +9,7 @@ add_compile_definitions("ARTIFACTS_PATH=\"${ARTIFACTS_PATH}\"")
 add_executable(test-driver driver.cc)
 target_link_libraries(test-driver server)
 
-add_custom_target(check-server
+add_custom_target(check-magenta
   test-driver
   DEPENDS test-driver
 )
